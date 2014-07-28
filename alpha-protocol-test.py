@@ -1,5 +1,6 @@
 import collections
 import struct
+import sys
 import time
 from tkinter import *
 from tkinter.ttk import *
@@ -83,29 +84,34 @@ class MainFrame(Frame):
         except:
             return False
 
+    def validateByte(self, text):
+        return self.validateIntRange(text, 0, 255)
+
+    def validateWord(self, text):
+        return self.validateIntRange(text, 0, 65535)
+
     def validateComSlave(self, text):
-        self.comSlaveValid = self.validateIntRange(text, 0, 65535)
+        self.comSlaveValid = self.validateWord(text)
         return True
 
     def validateSlave(self, text):
-        self.slaveValid = self.validateIntRange(text, 0, 65535)
+        self.slaveValid = self.validateWord(text)
+        return True
+
+    def validateName(self, text):
+        self.nameValid = self.validateByte(text)
         return True
 
     def validateTon(self, text):
-        self.tonValid = self.validateIntRange(text, 1, 255)
+        self.tonValid = self.validateByte(text)
         return True
 
     def validateToff(self, text):
-        self.toffValid = self.validateIntRange(text, 1, 255)
+        self.toffValid = self.validateByte(text)
         return True
 
-    def validateSequence(self, text):
-        try:
-            self.sequenceBytes = bytes.fromhex(text)
-            self.sequenceValid = True
-        except ValueError:
-            self.sequenceValid = False
-
+    def validatePulse(self, text):
+        self.pulseValid = self.validateByte(text)
         return True
 
     def verifyCom(self):
@@ -127,9 +133,16 @@ class MainFrame(Frame):
         if not port:
             return
 
-        self.com = serial.Serial(
-            '\\\\.\\' + port, self.comSpeedVar.get(), timeout=0, writeTimeout=0
-        )
+        if 'win32' == sys.platform:
+            port = '\\\\.\\' + port
+
+        try:
+            self.com = serial.Serial(
+                port, self.comSpeedVar.get(), timeout=0, writeTimeout=0
+            )
+        except serial.serialutil.SerialException:
+            return self.updateStatus('BAD PORT')
+
         self.after(100, self.listen)
 
     def disconnect(self):
@@ -336,37 +349,22 @@ class MainFrame(Frame):
         if self.write(2, list(struct.pack('<H', int(slave)))):
             self.newSlave = slave
 
-    def modeButton(self):
-        self.write(0, self.modeVar.get())
+    def outButton(self):
+        if not self.nameValid:
+            return self.updateStatus('INVALID OUT NAME')
+        elif not self.tonValid:
+            return self.updateStatus('INVALID PRESS TIME')
+        elif not self.toffValid:
+            return self.updateStatus('INVALID PAUSE')
+        elif not self.pulseValid:
+            return self.updateStatus('INVALID PULSE COUNT')
 
-    def configButton(self):
-        self.write(4, 7
-            (self.configVar[0].get() << 7) +
-            (self.configVar[1].get() << 6) +
-            (self.configVar[2].get() << 5) +
-            (self.configVar[3].get() << 4)
-        )
-
-    def sequenceButton(self):
-        if not self.tonValid:
-            return self.updateStatus('INVALID TON')
-        if not self.toffValid:
-            return self.updateStatus('INVALID TOFF')
-        if not self.sequenceValid:
-            return self.updateStatus('INVALID SEQUENCE')
-
-        self.write(5, 
-            [
-                (self.configVar[0].get() << 7) +
-                (self.configVar[1].get() << 6) +
-                (self.configVar[2].get() << 5) +
-                (self.configVar[3].get() << 4),
-                int(self.tonVar.get()),
-                int(self.toffVar.get()),
-                len(self.sequenceBytes)
-            ] +
-            list(self.sequenceBytes)
-        )
+        self.write(0, [
+            int(self.nameVar.get()),
+            int(self.tonVar.get()),
+            int(self.toffVar.get()),
+            int(self.pulseVar.get())
+        ])
 
     def updateButton(self):
         self.write(1, [])
@@ -413,31 +411,20 @@ class MainFrame(Frame):
         self.addButton('Set slave ID', self.slaveButton)
         self.addSpacer()
 
-        self.modeVar = self.addCheckbutton('Mode one')
-
-        self.addButton('Set mode', self.modeButton)
-        self.addSpacer()
-
-        self.configVar = []
-        self.configVar.append(self.addCheckbutton('Disable beeper'))
-        self.configVar.append(self.addCheckbutton('Disable keyboard'))
-        self.configVar.append(self.addCheckbutton('Enable relay'))
-        self.configVar.append(self.addCheckbutton('Key activation'))
-
-        self.addButton('Set config', self.configButton)
-        self.addSpacer()
-
+        self.nameVar = self.addEntry('Out name', self.validateName)
+        self.nameVar.set('00')
+        self.nameValid = True
         self.tonVar = self.addEntry('Press time', self.validateTon)
         self.tonVar.set('20')
         self.tonValid = True
         self.toffVar = self.addEntry('Pause', self.validateToff)
         self.toffVar.set('20')
         self.toffValid = True
-        self.sequenceVar = self.addEntry('Sequence', self.validateSequence)
-        self.sequenceVar.set('00')
-        self.validateSequence(self.sequenceVar.get())
+        self.pulseVar = self.addEntry('Pulse count', self.validatePulse)
+        self.pulseVar.set('01')
+        self.pulseValid = True
 
-        self.addButton('Execute sequence', self.sequenceButton)
+        self.addButton('Set out', self.outButton)
         self.addSpacer()
 
         self.statusVar = StringVar()

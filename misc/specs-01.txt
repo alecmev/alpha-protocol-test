@@ -1,0 +1,24 @@
+Протокол прежний.
+
+Удали команды и все что связано сними:
+-Set Mode
+-Set Config
+-Execute sequence
+
+Добавь 4-е поля для ввода однобайтовых величин:
+-OUT_NAME
+-TimeOn
+-TimeOff
+-PulseCount
+
+enum COMMAND_LIST
+{
+ SET_OUT,
+ GET_INPUT,
+ SET_ID,
+ SET_SPEED
+};
+
+формат команды которую надо добавить(она вместо SetMode) SET_OUT, OUT_NAME, TimeOn, TimeOff, PulseCount
+Добавь кнопку по нажатию которой эти 4-е поля передаются по прежнему протоколу в последовательности как описано выше
+Остальное без изменений.
