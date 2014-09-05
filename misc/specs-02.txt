@@ -1,0 +1,8 @@
+[17:41:30] Boriss Jeremejevs: Надо добавить поля:
+[17:41:42] Boriss Jeremejevs: EnableAck command=6, data вводится в окне hex 0-0xFF
+[17:45:05] Boriss Jeremejevs: Set LED command=7, data вводится в окне hex 0-0xFF
+[17:48:05] Boriss Jeremejevs: Еще введи свободное поле для command, hex 0-0xFF, и поле для данных 0-0xFF через пробел(или ничего) опять 0-0xFF и т.д.
+[17:48:31] Boriss Jeremejevs: Это что бы я тебя не доставал каждый раз, когда понадобится что то добавить...
+[17:49:19] Olegs Jeremejevs: можно тогда я просто добавлю третье
+[17:49:20] Olegs Jeremejevs: :D
+[17:49:30] Boriss Jeremejevs: давай

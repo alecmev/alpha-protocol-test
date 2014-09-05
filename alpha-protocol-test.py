@@ -114,6 +114,19 @@ class MainFrame(Frame):
         self.pulseValid = self.validateByte(text)
         return True
 
+    def validateCommand(self, text):
+        self.commandValid = self.validateByte(text)
+        return True
+
+    def validateData(self, text):
+        try:
+            self.dataBytes = bytes.fromhex(text)
+            self.dataValid = len(self.dataBytes) > 0
+        except ValueError:
+            self.dataValid = False
+
+        return True
+
     def verifyCom(self):
         return self.comPort.get() and self.comSlaveValid
 
@@ -366,6 +379,14 @@ class MainFrame(Frame):
             int(self.pulseVar.get())
         ])
 
+    def dataButton(self):
+        if not self.commandValid:
+            return self.updateStatus('INVALID COMMAND')
+        if not self.dataValid:
+            return self.updateStatus('INVALID DATA')
+
+        self.write(int(self.commandVar.get()), list(self.dataBytes))
+
     def updateButton(self):
         self.write(1, [])
 
@@ -425,6 +446,16 @@ class MainFrame(Frame):
         self.pulseValid = True
 
         self.addButton('Set out', self.outButton)
+        self.addSpacer()
+
+        self.commandVar = self.addEntry('Command', self.validateCommand)
+        self.commandVar.set('6')
+        self.commandValid = True
+        self.dataVar = self.addEntry('Data', self.validateData)
+        self.dataVar.set('00')
+        self.validateData(self.dataVar.get())
+
+        self.addButton('Write data', self.dataButton)
         self.addSpacer()
 
         self.statusVar = StringVar()

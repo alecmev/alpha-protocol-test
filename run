@@ -1,3 +1,4 @@
 #!/bin/bash
 
+source ./activate
 python3 ./alpha-protocol-test.py
