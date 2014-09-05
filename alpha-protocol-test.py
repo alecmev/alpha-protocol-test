@@ -23,6 +23,7 @@ class MainFrame(Frame):
     row = 0
     newSpeed = None
     newSlave = None
+    breakNeeded = False
 
     def addWidget(self, widget):
         widget.grid(column=1, row=self.row, sticky=(W, E), pady=3)
@@ -137,6 +138,22 @@ class MainFrame(Frame):
     def comSpeedChanged(self, name, index, mode):
         self.connect()
 
+    def log(self, data, prefix=None):
+        if prefix:
+            if self.breakNeeded:
+                sys.stdout.write('\n')
+            else:
+                self.breakNeeded = True
+
+            sys.stdout.write(prefix)
+
+        if not isinstance(data, collections.Iterable):
+            data = [data]
+
+        sys.stdout.write(' ')
+        sys.stdout.write(' '.join('{:02X}'.format(x) for x in bytes(data)))
+        sys.stdout.flush()
+
     def connect(self):
         if not self.initialized:
             return
@@ -159,7 +176,7 @@ class MainFrame(Frame):
         self.after(100, self.listen)
 
     def disconnect(self):
-        if not self.com == None:
+        if not None == self.com:
             self.com.close()
             self.com = None
 
@@ -195,42 +212,52 @@ class MainFrame(Frame):
             self.updateLastSlave(slave)
 
     def listen(self):
-        if self.com == None:
+        if None == self.com:
             return
 
         data = self.readByte()
-        if data == None:
+        if None == data:
             if not self.checkNew():
                 self.after(100, self.listen)
             return
+
+        self.log(data, '<<  ')
         if not data == self.SOP:
             return self.listenRes('FIRST BYTE WAS NOT SOP')
 
         lengthBytes = self.readTwo()
-        if lengthBytes == None:
+        if None == lengthBytes:
             return self.listenRes('FAILED TO READ PACKET LENGTH')
+
+        self.log(lengthBytes)
         length = struct.unpack_from('<H', lengthBytes)[0]
-
         slaveBytes = self.readTwo()
-        if slaveBytes == None:
+        if None == slaveBytes:
             return self.listenRes('FAILED TO READ SLAVE ID')
-        slave = struct.unpack_from('<H', slaveBytes)[0]
 
+        self.log(slaveBytes)
+        slave = struct.unpack_from('<H', slaveBytes)[0]
         ack = self.readOne()
-        if ack == None:
+        if None == ack:
             return self.listenRes('FAILED TO READ ACK', slave)
 
+        self.log(ack)
         status = self.readOne()
-        if status == None:
+        if None == status:
             return self.listenRes('FAILED TO READ KEYBOARD STATE', slave)
 
+        self.log(status)
         data = self.readTwo()
-        if data == None:
+        if None == data:
             return self.listenRes('FAILED TO READ CHECKSUM', slave)
-        crc = struct.unpack_from('<H', data)[0]
 
+        self.log(data)
+        crc = struct.unpack_from('<H', data)[0]
         data = self.readByte()
-        if data == None or not data == self.EOP:
+        if not None == data:
+            self.log(data)
+
+        if None == data or not self.EOP == data:
             return self.listenRes('LAST BYTE WAS NOT EOP', slave)
 
         if self.crc(lengthBytes + slaveBytes + bytes([ack, status])) == crc:
@@ -255,7 +282,7 @@ class MainFrame(Frame):
     def readTwo(self):
         one = self.readOne()
         two = self.readOne()
-        if one == None or two == None:
+        if None == one or None == two:
             return None
 
         return bytes([one, two])
@@ -316,12 +343,10 @@ class MainFrame(Frame):
         return bytes(res)
 
     def write(self, command, payload):
-        if self.com == None:
+        if None == self.com:
             return self.updateStatus('PORT NOT SELECTED')
-
         if not self.comSlaveValid:
             return self.updateStatus('INVALID COM SLAVE ID')
-
         if not isinstance(payload, collections.Iterable):
             payload = [payload]
 
@@ -337,6 +362,7 @@ class MainFrame(Frame):
             self.escape(struct.pack('<H', self.crc(data))) +
             bytes([self.EOP])
         )
+        self.log(data, '  >>')
         try:
             self.com.write(data)
         except:
